@@ -1,0 +1,33 @@
+name: CI/CD Pipeline for Node.js
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Checkout code
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # Build Docker image
+    - name: Build Docker image
+      run: docker build -t my-nodejs-app .
+
+    # Log in to AWS EC2
+    - name: SSH to EC2 and Deploy
+      env:
+        AWS_EC2_PUBLIC_IP: ${{ secrets.EC2_PUBLIC_IP }}
+        AWS_EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+      run: |
+        ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY ubuntu@$AWS_EC2_PUBLIC_IP << 'EOF'
+          # Pull Docker image and deploy
+          docker pull my-nodejs-app
+          docker stop nodejs-container || true
+          docker rm nodejs-container || true
+          docker run -d -p 80:3000 --name nodejs-container my-nodejs-app
+        EOF
